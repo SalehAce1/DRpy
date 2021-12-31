@@ -7,6 +7,7 @@ import datetime
 import scipy
 import scipy.interpolate
 import os
+import uuid
 #turn off warnings so i can use the progressbar
 import warnings
 warnings.filterwarnings('ignore')
@@ -35,6 +36,7 @@ class GPMDPR():
         send in a list of [lon_min,lon_mat,lat_min,lat_max]
         """
         self.filename = filename
+        self.h_suff = uuid.uuid4().hex[:6].upper()
         self.xrds = None
         self.datestr=None
         self.height= None
@@ -59,6 +61,9 @@ class GPMDPR():
             self.calc_heights()
             #this will convert the hdf to an xarray dataset
             self.toxr()
+            # remove file
+            os.remove("./HEIGHTS" + self.h_suff + ".nc")
+            os.remove("./HEIGHTS_full" + self.h_suff + ".nc")
         
     def read(self):
         """
@@ -107,11 +112,11 @@ class GPMDPR():
         for i in np.arange(0,176): #loop over num range gates
             for j in np.arange(0,49): #loop over scans 
                 a = np.arcsin(((re+407)/re)*np.sin(theta[j]))-theta[j] #407 km is the orbit height, re radius of earth, 
-                prh[j,i] = (176-(i))*0.125*np.cos(theta[j]+a) #more geometry 
+                prh[j,i] = (176-(i))*0.125*np.cos(theta[j]+a) #more geometry
         da = xr.DataArray(prh[:,:], dims=['cross_track','range'])
-        da.to_netcdf('./HEIGHTS_full.nc')
+        da.to_netcdf("./HEIGHTS_full" + self.h_suff + ".nc")
         da = xr.DataArray(prh[12:37,:], dims=['cross_track','range'])
-        da.to_netcdf('./HEIGHTS.nc')
+        da.to_netcdf("./HEIGHTS" + self.h_suff + ".nc")
         
     def toxr(self,ptype=None,clutter=False,echotop=False,precipflag=10):
         """
@@ -178,17 +183,17 @@ class GPMDPR():
             if self.height is None:
                 if self.legacy:
                     if self.outer_swath:
-                        height = xr.open_dataarray('./HEIGHTS_full.nc')
+                        height = xr.open_dataarray("./HEIGHTS_full" + self.h_suff + ".nc")
                         height = height.values[np.newaxis,:,:]
                         height = np.tile(height,(self.hdf['NS']['Longitude'].shape[0],1,1))
                         self.height = height
                     else:
-                        height = xr.open_dataarray('./HEIGHTS.nc')
+                        height = xr.open_dataarray("./HEIGHTS" + self.h_suff + ".nc")
                         height = height.values[np.newaxis,:,:]
                         height = np.tile(height,(self.hdf['NS']['Longitude'].shape[0],1,1))
                         self.height = height
                 else:
-                    height = xr.open_dataarray('./HEIGHTS_full.nc')
+                    height = xr.open_dataarray("./HEIGHTS_full" + self.h_suff + ".nc")
                     height = height.values[np.newaxis,:,:]
                     height = np.tile(height,(self.hdf['FS']['Longitude'].shape[0],1,1))
                     self.height = height
